@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<!--
+  3D Mosaic CAPTCHA
+  Copyright (c) 2025, Mehver
+  Licensed under the BSD 3-Clause License
+  https://github.com/Mehver/3D-Mosaic-CAPTCHA
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>3D Mosaic CAPTCHA Demo</title>
+
+    <!-- Vertex shader -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 vPosition;
+        attribute vec3 vColor;
+        uniform vec3 uTheta;
+        uniform mat4 uMVMatrix, uPMatrix;
+        varying vec3 fColor;
+        void main() {
+          vec3 a = radians(uTheta);
+          mat4 rx = mat4(
+            1.0, 0.0,       0.0,      0.0,
+            0.0, cos(a.x), sin(a.x),  0.0,
+            0.0,-sin(a.x), cos(a.x),  0.0,
+            0.0, 0.0,       0.0,      1.0
+          );
+          mat4 ry = mat4(
+            cos(a.y), 0.0, -sin(a.y), 0.0,
+            0.0,      1.0,  0.0,      0.0,
+            sin(a.y), 0.0,  cos(a.y), 0.0,
+            0.0,      0.0,  0.0,      1.0
+          );
+          mat4 model = ry * rx;
+          gl_Position = uPMatrix * uMVMatrix * model * vPosition;
+          fColor = vColor;
+        }
+    </script>
+
+    <!-- Fragment shader -->
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec3 fColor;
+        void main() {
+          gl_FragColor = vec4(fColor, 1.0);
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        p.desc {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .controls button,
+        .controls input[type=range] {
+            margin-right: 5px;
+        }
+
+        #status {
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: left;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        #mosaicTable {
+            width: 300px;
+            height: 300px;
+            table-layout: fixed;
+            border-collapse: collapse;
+            image-rendering: pixelated;
+            background-color: white;
+        }
+
+        #mosaicTable th, #mosaicTable td {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            margin: 0;
+            text-align: center;
+            line-height: 20px;
+            user-select: none;
+        }
+
+        #mosaicTable th {
+            background-color: #eee;
+            cursor: move;
+        }
+
+        #mosaicTable td {
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+<h1>3D Mosaic CAPTCHA (Demo 250423) [<a href='https://github.com/Mehver/3D-Mosaic-CAPTCHA'><img
+        src="https://img.shields.io/badge/-GitHub-3A3A3A?style=for-the-badge&amp;logo=GitHub&amp;logoColor=white"
+        referrerpolicy="no-referrer" alt="GitHub"></a>]</h1>
+<p class="desc">
+    Observe the left mosaic and restore shuffled rows and columns to match the right 3D view.
+</p>
+
+<div class="controls">
+    <button id="btnLow">Low Difficulty</button>
+    <button id="btnMedium">Medium Difficulty</button>
+    <button id="btnHigh">High Difficulty</button>
+
+    <label for="rotationSlider">Rotate view:</label>
+    <input type="range" id="rotationSlider"/>
+
+    <button id="btnSubmit">Submit</button>
+</div>
+
+<div id="status"></div>
+
+<div class="container">
+    <table id="mosaicTable">
+        <thead>
+        <tr>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <canvas id="viewerCanvas" width="300" height="300"></canvas>
+</div>
+
+
+<script>
+    const umdModules = [
+        [
+            /*
+                This UMD file is licensed under the BSD-3-Clause (Google variant) license,
+                with the license terms included in the file header comments.
+                Therefore, this file is not subject to the repository’s overall license.
+            */
+            // https://github.com/Beck049/Solar_system_Graphic_Final/blob/182eec025be4dc714b61a06dca87addef218710b/Common/webgl-utils.js
+            // https://github.com/operasoftware/Emberwind/blob/78a2811ee9db28bd566427253c3e4fe8a9ac78b3/src/render/webgl-utils.js
+            // https://github.com/jbcon/Asteroids-Next-Dimension/blob/a8e8089c92c38963754d4f929ffa3a1ce896d090/lib/webgl-utils.js
+            // https://github.com/jb55/titania/blob/7b8c7dd5af757c47c64bdf69c1c03b2516a5eede/src/titanium/util/webgl.js
+            // https://github.com/carolflz/Spider_CPC354/blob/fe393a83c5fbaba7e965d69601684886eebfc1d3/Common/webgl-utils.js
+            // https://github.com/schibo/1964js/blob/2d10af3ced12e901cad803ea174e680fc5299102/lib/webgl-utils.js
+            "https://cdn.jsdelivr.net/gh/Beck049/Solar_system_Graphic_Final@182eec025be4dc714b61a06dca87addef218710b/Common/webgl-utils.js",
+            "https://cdn.jsdelivr.net/gh/operasoftware/Emberwind@78a2811ee9db28bd566427253c3e4fe8a9ac78b3/src/render/webgl-utils.js",
+            "https://cdn.jsdelivr.net/gh/jbcon/Asteroids-Next-Dimension@a8e8089c92c38963754d4f929ffa3a1ce896d090/lib/webgl-utils.js",
+            "https://cdn.jsdelivr.net/gh/jb55/titania@7b8c7dd5af757c47c64bdf69c1c03b2516a5eede/src/titanium/util/webgl.js",
+            "https://cdn.jsdelivr.net/gh/carolflz/Spider_CPC354@fe393a83c5fbaba7e965d69601684886eebfc1d3/Common/webgl-utils.js",
+            "https://cdn.jsdelivr.net/gh/schibo/1964js@2d10af3ced12e901cad803ea174e680fc5299102/lib/webgl-utils.js",
+            "https://cdn.statically.io/gh/Beck049/Solar_system_Graphic_Final/182eec025be4dc714b61a06dca87addef218710b/Common/webgl-utils.js",
+            "https://cdn.statically.io/gh/operasoftware/Emberwind/78a2811ee9db28bd566427253c3e4fe8a9ac78b3/src/render/webgl-utils.js",
+            "https://cdn.statically.io/gh/jbcon/Asteroids-Next-Dimension/a8e8089c92c38963754d4f929ffa3a1ce896d090/lib/webgl-utils.js",
+            "https://cdn.statically.io/gh/jb55/titania/7b8c7dd5af757c47c64bdf69c1c03b2516a5eede/src/titanium/util/webgl.js",
+            "https://cdn.statically.io/gh/carolflz/Spider_CPC354/fe393a83c5fbaba7e965d69601684886eebfc1d3/Common/webgl-utils.js",
+            "https://cdn.statically.io/gh/schibo/1964js/2d10af3ced12e901cad803ea174e680fc5299102/lib/webgl-utils.js",
+            "https://raw.githack.com/Beck049/Solar_system_Graphic_Final/182eec025be4dc714b61a06dca87addef218710b/Common/webgl-utils.js",
+            "https://raw.githack.com/operasoftware/Emberwind/78a2811ee9db28bd566427253c3e4fe8a9ac78b3/src/render/webgl-utils.js",
+            "https://raw.githack.com/jbcon/Asteroids-Next-Dimension/a8e8089c92c38963754d4f929ffa3a1ce896d090/lib/webgl-utils.js",
+            "https://raw.githack.com/jb55/titania/7b8c7dd5af757c47c64bdf69c1c03b2516a5eede/src/titanium/util/webgl.js",
+            "https://raw.githack.com/carolflz/Spider_CPC354/fe393a83c5fbaba7e965d69601684886eebfc1d3/Common/webgl-utils.js",
+            "https://raw.githack.com/schibo/1964js/2d10af3ced12e901cad803ea174e680fc5299102/lib/webgl-utils.js",
+        ],
+        [
+            /*
+                The following GitHub repositories that provide this UMD file use the MIT open source license.
+             */
+            // https://github.com/trelans/trelans.github.io/blob/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js
+            // https://github.com/ipetkov/IslandMysteryGame/blob/92285f5c95188823cf925befcc35713bc0d9368e/MV.js
+            // https://github.com/zoraork555/webgl-chain-maker/blob/7fca2bf9bc31bdd4faddff70223ef8b8c97d5551/Common/MV.js
+            // https://github.com/trelans/trelans.github.io/blob/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js
+            // https://github.com/Absulit/points/blob/e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/MV.js
+            /*
+                The following GitHub repositories that provide this UMD file use the Apache-2.0 open source license.
+             */
+            // https://github.com/Beck049/Solar_system_Graphic_Final/blob/182eec025be4dc714b61a06dca87addef218710b/Common/math-function.js
+            "https://cdn.jsdelivr.net/gh/trelans/trelans.github.io@bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js",
+            "https://cdn.jsdelivr.net/gh/ipetkov/IslandMysteryGame@92285f5c95188823cf925befcc35713bc0d9368e/MV.js",
+            "https://cdn.jsdelivr.net/gh/zoraork555/webgl-chain-maker@7fca2bf9bc31bdd4faddff70223ef8b8c97d5551/Common/MV.js",
+            "https://cdn.jsdelivr.net/gh/trelans/trelans.github.io@bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js",
+            "https://cdn.jsdelivr.net/gh/Absulit/points@e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/MV.js",
+            "https://cdn.jsdelivr.net/gh/Beck049/Solar_system_Graphic_Final@182eec025be4dc714b61a06dca87addef218710b/Common/math-function.js",
+            "https://cdn.statically.io/gh/trelans/trelans.github.io/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js",
+            "https://cdn.statically.io/gh/ipetkov/IslandMysteryGame/92285f5c95188823cf925befcc35713bc0d9368e/MV.js",
+            "https://cdn.statically.io/gh/zoraork555/webgl-chain-maker/7fca2bf9bc31bdd4faddff70223ef8b8c97d5551/Common/MV.js",
+            "https://cdn.statically.io/gh/trelans/trelans.github.io/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js",
+            "https://cdn.statically.io/gh/Absulit/points/e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/MV.js",
+            "https://cdn.statically.io/gh/Beck049/Solar_system_Graphic_Final/182eec025be4dc714b61a06dca87addef218710b/Common/math-function.js",
+            "https://raw.githack.com/trelans/trelans.github.io/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js",
+            "https://raw.githack.com/ipetkov/IslandMysteryGame/92285f5c95188823cf925befcc35713bc0d9368e/MV.js",
+            "https://raw.githack.com/zoraork555/webgl-chain-maker/7fca2bf9bc31bdd4faddff70223ef8b8c97d5551/Common/MV.js",
+            "https://raw.githack.com/trelans/trelans.github.io/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/MV.js",
+            "https://raw.githack.com/Absulit/points/e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/MV.js",
+            "https://raw.githack.com/Beck049/Solar_system_Graphic_Final/182eec025be4dc714b61a06dca87addef218710b/Common/math-function.js",
+        ],
+        [
+            /*
+                The following GitHub repositories that provide this UMD file use the MIT open source license.
+             */
+            // https://github.com/JPMMaia/PerlinNoise/blob/734a5daff2156476dd9518abc96b953997ab3538/Common/initShaders.js
+            // https://github.com/johnsandiego/Learning-WebGL/blob/6eee7e238f59037ff9257b28998303751aed3e3c/initShaders.js
+            // https://github.com/trelans/trelans.github.io/blob/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/initShaders.js
+            // https://github.com/Absulit/points/blob/e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/initShaders.js
+            /*
+                The following GitHub repositories that provide this UMD file use the Apache-2.0 open source license.
+             */
+            // https://github.com/rupc/class-computer-graphics/blob/adac4c2c2c8101cdbba2f6a48fb8f7e619c18b76/lab4/setupShaderWebGL.js
+            "https://cdn.jsdelivr.net/gh/JPMMaia/PerlinNoise@734a5daff2156476dd9518abc96b953997ab3538/Common/initShaders.js",
+            "https://cdn.jsdelivr.net/gh/johnsandiego/Learning-WebGL@6eee7e238f59037ff9257b28998303751aed3e3c/initShaders.js",
+            "https://cdn.jsdelivr.net/gh/trelans/trelans.github.io@bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/initShaders.js",
+            "https://cdn.jsdelivr.net/gh/Absulit/points@e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/initShaders.js",
+            "https://cdn.jsdelivr.net/gh/rupc/class-computer-graphics@adac4c2c2c8101cdbba2f6a48fb8f7e619c18b76/lab4/setupShaderWebGL.js",
+            "https://cdn.statically.io/gh/JPMMaia/PerlinNoise/734a5daff2156476dd9518abc96b953997ab3538/Common/initShaders.js",
+            "https://cdn.statically.io/gh/johnsandiego/Learning-WebGL/6eee7e238f59037ff9257b28998303751aed3e3c/initShaders.js",
+            "https://cdn.statically.io/gh/trelans/trelans.github.io/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/initShaders.js",
+            "https://cdn.statically.io/gh/Absulit/points/e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/initShaders.js",
+            "https://cdn.statically.io/gh/rupc/class-computer-graphics/adac4c2c2c8101cdbba2f6a48fb8f7e619c18b76/lab4/setupShaderWebGL.js",
+            "https://raw.githack.com/JPMMaia/PerlinNoise/734a5daff2156476dd9518abc96b953997ab3538/Common/initShaders.js",
+            "https://raw.githack.com/johnsandiego/Learning-WebGL/6eee7e238f59037ff9257b28998303751aed3e3c/initShaders.js",
+            "https://raw.githack.com/trelans/trelans.github.io/bc9d544280e3b0023ab2de98c6b9d8d96369fcbc/Paint/Common/initShaders.js",
+            "https://raw.githack.com/Absulit/points/e4731d2f04dcb7326ffce992adc2eca770991a91/legacy/Common/initShaders.js",
+            "https://raw.githack.com/rupc/class-computer-graphics/adac4c2c2c8101cdbba2f6a48fb8f7e619c18b76/lab4/setupShaderWebGL.js",
+        ],
+        [
+            /*
+                SortableJS is released under the MIT license,
+                with the license information included in the file header comments.
+             */
+            // https://github.com/SortableJS/Sortable/tree/1.15.6
+            "https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js",
+            "https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js",
+            "https://cdn.jsdelivr.net/gh/SortableJS/Sortable@1.15.6/Sortable.min.js",
+            "https://cdn.statically.io/gh/SortableJS/Sortable/1.15.6/Sortable.min.js",
+            "https://raw.githack.com/SortableJS/Sortable/1.15.6/Sortable.min.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.js",
+            "https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.js",
+            "https://cdn.jsdelivr.net/gh/SortableJS/Sortable@1.15.6/Sortable.js",
+            "https://cdn.statically.io/gh/SortableJS/Sortable/1.15.6/Sortable.js",
+            "https://raw.githack.com/SortableJS/Sortable/1.15.6/Sortable.js",
+        ],
+        [
+            "./main.js"
+        ]
+    ];
+
+    function loadScriptSequential(url) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = url;
+            script.async = false;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error(`Failed: ${url}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function loadModulesSequentially(modules) {
+        for (const cdnGroup of modules) {
+            let loaded = false;
+            for (const url of cdnGroup) {
+                try {
+                    await loadScriptSequential(url);
+                    console.log(`Loaded: ${url}`);
+                    loaded = true;
+                    break;
+                } catch (e) {
+                    console.warn(e.message);
+                }
+            }
+            if (!loaded) {
+                alert(`Failed to load:\n${cdnGroup[0]}`);
+                break;
+            }
+        }
+    }
+
+    loadModulesSequentially(umdModules);
+</script>
+
+</body>
+</html>

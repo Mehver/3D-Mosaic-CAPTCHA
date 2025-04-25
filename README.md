@@ -42,4 +42,4 @@ If you are interested in research or collaboration in areas like HCI or visual v
 This project is released under the BSD 3-Clause License.  
 Code may be reused with proper attribution.
 
-Copyright (c) 2025, Mehver (https://github.com/Mehver) — All rights reserved.
+Copyright (c) 2025-Present, Mehver (https://github.com/Mehver). All rights reserved.

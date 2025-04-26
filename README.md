@@ -2,6 +2,8 @@
 
 This is an exploratory project aimed at designing and implementing a novel CAPTCHA system. It leverages WebGL-based visual interaction and combines 3D modeling with 2D image reconstruction to create a more secure and bot-resistant verification process.
 
+![Demo](./documents/1.gif)
+
 ## Live Demo
 
 Try out the live demo in your browser: 
